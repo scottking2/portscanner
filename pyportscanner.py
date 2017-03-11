@@ -7,6 +7,9 @@ import netaddr
 from datetime import datetime # Other stuff
 from time import strftime
 
+########################################################################
+#		https://github.com/scottking2/portscanner.git	   			   #
+########################################################################
 conf.verb = 0
 
 def checkhost(host): # Function to check if target is up
