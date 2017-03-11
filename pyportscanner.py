@@ -1,0 +1,145 @@
+#! /usr/bin/python
+from logging import getLogger, ERROR # Import Logging Things
+getLogger("scapy.runtime").setLevel(ERROR) # Get Rid if IPv6 Warning
+from scapy.all import * # The One and Only Scapy
+import sys 
+import netaddr
+from datetime import datetime # Other stuff
+from time import strftime
+
+####################################################################################
+#	To Do: 	
+#			Create a github file
+#			Comment code && clean up
+####################################################################################
+
+
+conf.verb = 0
+
+def checkhost(host): # Function to check if target is up
+	conf.verb = 1 # Hide output
+	response = 0
+	try:
+		ping = sr1(IP(dst = host)/ICMP()) # Ping the target
+		response += 1
+		# print "\n[*] Target is Up, Beginning Scan..."
+	except Exception: # If ping fails
+		response = 0
+		# print "\n[!] Couldn't Resolve Target"
+		# print "[!] Exiting..."
+		# sys.exit(1)
+	return response
+
+def udp_scan(host,port): #Do UDP Scan. This is really slow, but works. 
+	closed = 0
+	dst_timeout = 2
+	src_port = RandShort()
+	udp_scan_resp = sr1(IP(dst=host)/UDP(dport=port),timeout=dst_timeout)
+	if (str(type(udp_scan_resp))=="<type 'NoneType'>"):
+		retrans = []
+		for count in range(0,3):
+			retrans.append(sr1(IP(dst=host)/UDP(dport=port),timeout=dst_timeout))
+			for item in retrans:
+				if (str(type(item))!="<type 'NoneType'>"):
+					udp_scan(host,port)
+					closed += 1
+				else:
+					closed = 0
+	return closed
+
+def scanhost(host, dst_port): # Scan TCP port. Not as fast as nmap, but works. 
+	closed = 0
+	src_port = RandShort()
+	tcp_connect_scan_resp = sr1(IP(dst=host)/TCP(sport=src_port,dport=dst_port,flags="S"),timeout=10)
+	if(str(type(tcp_connect_scan_resp))=="<type 'NoneType'>"):
+		closed = 0
+	elif(tcp_connect_scan_resp.haslayer(TCP)):
+		if(tcp_connect_scan_resp.getlayer(TCP).flags == 0x12):
+			send_rst = sr(IP(dst=host)/TCP(sport=src_port,dport=dst_port,flags="AR"),timeout=10)
+			closed +=1
+		elif (tcp_connect_scan_resp.getlayer(TCP).flags == 0x14):
+			closed = 0
+	return closed
+
+def parse_port_range(port_range): #Used to split by , or - for port range. 
+	if ',' in port_range:
+		ports = port_range.split(',')
+	elif '-' in port_range:
+		start, end = map(int, port_range.split('-'))
+		ports = range(start, end +1)
+	else:
+		ports = [port_range]
+	return map(int, ports)
+
+
+def scan(cliargs):
+	hosts = cliargs.TARGET.split(',')
+	host_list = []
+	if not cliargs.noping:
+		for host in hosts:
+			response = checkhost(host)
+			if response:
+				print str(host) + " responded to ping! \n"
+			else:
+				print str(host) + " did not respond to ping."
+	else:
+		print "\n\nping was not tested\n"
+	# 	for host in hosts:
+	# 		ipN = netaddr.IPNetwork(host)
+	# 		host_list.extend(list(ipN))
+	# host_list = set(host_list)
+	if len(host_list) < 0:
+		print "No targets available."
+		sys.exit(1)
+	ports = parse_port_range(cliargs.port)
+	start_clock = datetime.now() # Start clock for scan time
+	print "[*] Scanning started at " + strftime("%H:%M:%S") + "!\n" # Confirm scan start
+
+	for host in hosts:
+		print "Started scan on " + str(host)+ "\n"
+		for port in ports:
+			status = scanhost(host, port)
+			if status == True:
+				print "\nport " + str(port) + ": Open\n"
+		print "\n\n"
+	stop_clock = datetime.now() # Stop clock for scan time
+	total_time = stop_clock - start_clock # Calculate scan time
+	print "\n[*] TCP Scanning finished!" # Confirm scan stop
+	print "[*] Total TCP scan duration: " + str(total_time) # Print scan time
+
+	if cliargs.udp:
+		print "\n\n[*] UDP scanning started at " + strftime("%H:%M:%S") + "!\n" # Confirm scan start
+		print "*******WARNING******** THIS MAY TAKE A LONG TIME."
+		for host in hosts:
+			print "Started UDP scan on " + str(host)+ "\n"
+			for port in ports:
+				status = udp_scan(host, port)
+				if status == True:
+					print "UDP port " + str(port) + ": Open"
+			print "\n\n"
+		print "\n[*] UDP scanning complete."
+
+if __name__ =='__main__': # Arg parser allows for commandline switches. 
+	import argparse
+	parser = argparse.ArgumentParser(
+		description="Port scanner to discover open ports on specified hosts.")
+	parser.add_argument("TARGET",
+		help="Define the target host/s by comma sererated IP addresses")
+	parser.add_argument("-p", "--port", default="1-1025",
+		help="specify range of ports. Ex: \'1-1025\' (default)")
+	parser.add_argument("-n", "--noping", default=False, action="store_true",
+		help="Assumes all Targets are available. Default checks for response by ping before scan.")
+	parser.add_argument("-u", "--udp", default=False, action="store_true",
+		help="run UDP scan of the port range as well. **Warning, this may take a long time.")
+
+	args = parser.parse_args()
+	scan(args) # starts the actual script. 
+
+
+
+
+
+
+
+
+
