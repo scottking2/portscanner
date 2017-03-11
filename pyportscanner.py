@@ -7,13 +7,6 @@ import netaddr
 from datetime import datetime # Other stuff
 from time import strftime
 
-####################################################################################
-#	To Do: 	
-#			Create a github file
-#			Comment code && clean up
-####################################################################################
-
-
 conf.verb = 0
 
 def checkhost(host): # Function to check if target is up
@@ -22,12 +15,9 @@ def checkhost(host): # Function to check if target is up
 	try:
 		ping = sr1(IP(dst = host)/ICMP()) # Ping the target
 		response += 1
-		# print "\n[*] Target is Up, Beginning Scan..."
 	except Exception: # If ping fails
 		response = 0
-		# print "\n[!] Couldn't Resolve Target"
-		# print "[!] Exiting..."
-		# sys.exit(1)
+		
 	return response
 
 def udp_scan(host,port): #Do UDP Scan. This is really slow, but works. 
@@ -84,10 +74,7 @@ def scan(cliargs):
 				print str(host) + " did not respond to ping."
 	else:
 		print "\n\nping was not tested\n"
-	# 	for host in hosts:
-	# 		ipN = netaddr.IPNetwork(host)
-	# 		host_list.extend(list(ipN))
-	# host_list = set(host_list)
+	
 	if len(host_list) < 0:
 		print "No targets available."
 		sys.exit(1)
@@ -124,11 +111,11 @@ if __name__ =='__main__': # Arg parser allows for commandline switches.
 	parser = argparse.ArgumentParser(
 		description="Port scanner to discover open ports on specified hosts.")
 	parser.add_argument("TARGET",
-		help="Define the target host/s by comma sererated IP addresses")
+		help="Define the target host/s by comma separated IP addresses")
 	parser.add_argument("-p", "--port", default="1-1025",
-		help="specify range of ports. Ex: \'1-1025\' (default)")
+		help="specify range of ports. Ex: \'1-1025\' (default), Ex: \'22,23\', Ex: \'22\'")
 	parser.add_argument("-n", "--noping", default=False, action="store_true",
-		help="Assumes all Targets are available. Default checks for response by ping before scan.")
+		help="Assumes targets are available, and no need to check for ICMP ping. Default checks for response by ICMP ping before scan.")
 	parser.add_argument("-u", "--udp", default=False, action="store_true",
 		help="run UDP scan of the port range as well. **Warning, this may take a long time.")
 
